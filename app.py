@@ -1,13 +1,13 @@
 from flask import Flask, request, jsonify
 from flask_cors import CORS
-from openai import OpenAI
+import openai
 import os
 
 app = Flask(__name__)
 CORS(app)
 
-# ✅ Создаём клиента OpenAI
-client = OpenAI(api_key=os.getenv("OPENAI_API_KEY"))
+# ✅ Настройка API ключа
+openai.api_key = os.getenv("OPENAI_API_KEY")
 
 @app.route("/", methods=["GET"])
 def root():
@@ -22,17 +22,24 @@ def generate_reply():
         if not prompt:
             return jsonify({"error": "Empty prompt"}), 400
 
-        # ✅ Генерация через новую API OpenAI (v1)
-        response = client.chat.completions.create(
-            model="gpt-4o-mini",
+        # ✅ Совместимая версия с OpenAI API любого поколения
+        response = openai.ChatCompletion.create(
+            model="gpt-3.5-turbo",
             messages=[
-                {"role": "system", "content": "Ты — помощник, который пишет вежливые, короткие ответы на письма."},
-                {"role": "user", "content": f"Ответь на письмо: {prompt}"}
+                {
+                    "role": "system",
+                    "content": "Ты — вежливый и лаконичный помощник, отвечающий на письма в Gmail.",
+                },
+                {
+                    "role": "user",
+                    "content": f"Ответь на письмо: {prompt}",
+                },
             ],
             max_tokens=150,
+            temperature=0.7,
         )
 
-        reply_text = response.choices[0].message.content.strip()
+        reply_text = response.choices[0].message["content"].strip()
         return jsonify({"reply": reply_text})
 
     except Exception as e:
