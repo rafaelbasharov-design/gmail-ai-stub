@@ -6,7 +6,6 @@ from openai import OpenAI
 app = Flask(__name__)
 CORS(app)
 
-# --- Настройки ---
 OPENAI_API_KEY = os.getenv("OPENAI_API_KEY")
 client = OpenAI(api_key=OPENAI_API_KEY)
 
@@ -21,18 +20,25 @@ def generate_reply():
         user_text = data.get("text", "").strip()
 
         if not user_text:
-            return jsonify({"error": "Пустое письмо. Введите текст."}), 400
+            return jsonify({"error": "Пустое письмо"}), 400
 
-        # Генерация текста
-        response = client.responses.create(
-            model="gpt-4.1-mini",
-            input=f"Составь короткий, вежливый и профессиональный ответ на письмо:\n\n{user_text}"
+        # Используем Chat API вместо responses (надёжнее и быстрее)
+        completion = client.chat.completions.create(
+            model="gpt-4o-mini",
+            messages=[
+                {"role": "system", "content": "Ты вежливый ассистент, пиши краткие и дружелюбные ответы на письма."},
+                {"role": "user", "content": user_text}
+            ],
+            max_tokens=120,
+            temperature=0.7,
+            timeout=20  # предотвращает зависание
         )
 
-        ai_reply = response.output[0].content[0].text.strip()
+        ai_reply = completion.choices[0].message.content.strip()
         return jsonify({"reply": ai_reply})
 
     except Exception as e:
+        print("SERVER ERROR:", str(e))
         return jsonify({"error": f"Ошибка на сервере: {str(e)}"}), 500
 
 
