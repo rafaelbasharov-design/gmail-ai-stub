@@ -1,50 +1,40 @@
 from flask import Flask, request, jsonify
 from flask_cors import CORS
-import openai
 import os
+from openai import OpenAI
 
 app = Flask(__name__)
 CORS(app)
 
-# ✅ Настройка API ключа
-openai.api_key = os.getenv("OPENAI_API_KEY")
+# --- Настройки ---
+OPENAI_API_KEY = os.getenv("OPENAI_API_KEY")
+client = OpenAI(api_key=OPENAI_API_KEY)
 
 @app.route("/", methods=["GET"])
-def root():
+def home():
     return jsonify({"status": "Gmail AI Stub is running"})
 
 @app.route("/generate", methods=["POST"])
 def generate_reply():
     try:
         data = request.get_json()
-        prompt = data.get("prompt", "").strip()
+        user_text = data.get("text", "").strip()
 
-        if not prompt:
-            return jsonify({"error": "Empty prompt"}), 400
+        if not user_text:
+            return jsonify({"error": "Пустое письмо. Введите текст."}), 400
 
-        # ✅ Совместимая версия с OpenAI API любого поколения
-        response = openai.ChatCompletion.create(
-            model="gpt-3.5-turbo",
-            messages=[
-                {
-                    "role": "system",
-                    "content": "Ты — вежливый и лаконичный помощник, отвечающий на письма в Gmail.",
-                },
-                {
-                    "role": "user",
-                    "content": f"Ответь на письмо: {prompt}",
-                },
-            ],
-            max_tokens=150,
-            temperature=0.7,
+        # Генерация текста
+        response = client.responses.create(
+            model="gpt-4.1-mini",
+            input=f"Составь короткий, вежливый и профессиональный ответ на письмо:\n\n{user_text}"
         )
 
-        reply_text = response.choices[0].message["content"].strip()
-        return jsonify({"reply": reply_text})
+        ai_reply = response.output[0].content[0].text.strip()
+        return jsonify({"reply": ai_reply})
 
     except Exception as e:
-        print("❌ SERVER ERROR:", str(e))
-        return jsonify({"error": str(e)}), 500
+        return jsonify({"error": f"Ошибка на сервере: {str(e)}"}), 500
+
 
 if __name__ == "__main__":
     app.run(host="0.0.0.0", port=10000)
