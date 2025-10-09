@@ -1,11 +1,11 @@
 from flask import Flask, request, jsonify
 import os
-import openai
+from openai import OpenAI
 
 app = Flask(__name__)
 
-# Ключ API из Render
-openai.api_key = os.getenv("OPENAI_API_KEY")
+# Подключаем OpenAI с ключом из Render
+client = OpenAI(api_key=os.getenv("OPENAI_API_KEY"))
 
 @app.route("/")
 def home():
@@ -16,26 +16,24 @@ def generate_reply():
     try:
         data = request.get_json()
         user_text = data.get("text", "").strip()
-
         if not user_text:
             return jsonify({"error": "No text provided"}), 400
 
-        # Основной запрос к OpenAI (старый стабильный SDK)
-        completion = openai.ChatCompletion.create(
+        completion = client.chat.completions.create(
             model="gpt-3.5-turbo",
             messages=[
-                {"role": "system", "content": "Ты — AI помощник Gmail. Отвечай вежливо, лаконично и по делу."},
+                {"role": "system", "content": "Ты — AI для Gmail. Отвечай кратко, дружелюбно и по существу."},
                 {"role": "user", "content": user_text}
             ],
             temperature=0.7,
             max_tokens=200
         )
 
-        reply = completion.choices[0].message["content"].strip()
+        reply = completion.choices[0].message.content.strip()
         return jsonify({"reply": reply})
 
     except Exception as e:
-        print("Ошибка сервера:", e)
+        print("Ошибка на сервере:", e)
         return jsonify({"error": str(e)}), 500
 
 
