@@ -20,15 +20,15 @@ def generate_reply():
         if not user_text:
             return jsonify({"error": "No text provided"}), 400
 
-        # Старый стабильный способ генерации
+        # Основной запрос к OpenAI (старый стабильный SDK)
         completion = openai.ChatCompletion.create(
             model="gpt-3.5-turbo",
             messages=[
-                {"role": "system", "content": "Ты — AI помощник Gmail. Отвечай кратко и дружелюбно."},
+                {"role": "system", "content": "Ты — AI помощник Gmail. Отвечай вежливо, лаконично и по делу."},
                 {"role": "user", "content": user_text}
             ],
-            max_tokens=150,
-            temperature=0.7
+            temperature=0.7,
+            max_tokens=200
         )
 
         reply = completion.choices[0].message["content"].strip()
