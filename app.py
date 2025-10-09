@@ -4,7 +4,7 @@ from openai import OpenAI
 
 app = Flask(__name__)
 
-# Получаем ключ API из Render
+# Инициализация клиента
 client = OpenAI(api_key=os.getenv("OPENAI_API_KEY"))
 
 @app.route("/")
@@ -22,7 +22,7 @@ def generate_reply():
         if not text:
             return jsonify({"error": "No text provided"}), 400
 
-        # 🧠 Формируем подсказку для модели
+        # 🎯 Настройки стиля ответа
         tone_prompts = {
             "polite": "Отвечай вежливо и дружелюбно.",
             "short": "Составь очень краткий ответ, не более 2 предложений.",
@@ -30,32 +30,37 @@ def generate_reply():
             "creative": "Сделай ответ нестандартным, с лёгким креативом.",
             "thanks": "Составь ответ с благодарностью, доброжелательный тон."
         }
-
         tone_instruction = tone_prompts.get(tone, tone_prompts["polite"])
 
+        # 🧠 Формируем запрос к модели
         prompt = (
-            f"Пользователь получил письмо на {language} языке. "
-            f"{tone_instruction} Ответь на это письмо на {language} языке, основываясь на его содержании.\n\n"
+            f"Ты — AI помощник для Gmail. Пользователь получил письмо на {language} языке. "
+            f"{tone_instruction} Ответь на это письмо в корректной форме на {language} языке.\n\n"
             f"Письмо:\n{text}"
         )
 
-        # ⚙️ Запрос к OpenAI
+        # 🚀 Основной запрос к OpenAI
         completion = client.chat.completions.create(
             model="gpt-3.5-turbo",
             messages=[
-                {"role": "system", "content": "Ты — AI помощник, который пишет ответы на письма Gmail."},
+                {"role": "system", "content": "Ты — AI помощник Gmail. Помогаешь пользователям писать ответы на письма."},
                 {"role": "user", "content": prompt}
             ],
             temperature=0.7,
             max_tokens=400
         )
 
-        ai_reply = completion.choices[0].message.content.strip()
-        return jsonify({"reply": ai_reply})
+        reply = completion.choices[0].message.content.strip()
+        return jsonify({"reply": reply})
 
     except Exception as e:
         print("⚠️ Ошибка на сервере:", e)
-        return jsonify({"error": str(e)}), 500
+        # 🛟 Fallback: если OpenAI не отвечает
+        fallback_reply = (
+            "Извините, сейчас AI временно недоступен. "
+            "Попробуйте снова через минуту 🙏"
+        )
+        return jsonify({"reply": fallback_reply, "error": str(e)}), 200
 
 
 if __name__ == "__main__":
