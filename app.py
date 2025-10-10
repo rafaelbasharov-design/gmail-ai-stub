@@ -6,7 +6,7 @@ from openai import OpenAI
 app = Flask(__name__)
 CORS(app)
 
-# Подключение API-ключа
+# 🔑 Ключ из переменных окружения Render
 client = OpenAI(api_key=os.getenv("OPENAI_API_KEY"))
 
 @app.route("/", methods=["GET"])
@@ -23,7 +23,7 @@ def generate():
         if not text:
             return jsonify({"error": "Empty input"}), 400
 
-        system_prompt = f"You are a helpful email assistant. Respond in {lang} language, politely and briefly."
+        system_prompt = f"You are a helpful email assistant. Respond in {lang} politely and briefly."
 
         response = client.chat.completions.create(
             model="gpt-4o-mini",
@@ -38,7 +38,7 @@ def generate():
         return jsonify({"reply": reply})
 
     except Exception as e:
-        print("Error:", e)
+        print("⚠️ Server error:", e)
         return jsonify({"error": str(e)}), 500
 
 
