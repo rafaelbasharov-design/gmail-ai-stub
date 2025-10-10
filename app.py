@@ -1,47 +1,47 @@
 from flask import Flask, request, jsonify
+from flask_cors import CORS
 import os
 from openai import OpenAI
 
 app = Flask(__name__)
+CORS(app)
 
-# Инициализация клиента OpenAI
+# Подключение API-ключа
 client = OpenAI(api_key=os.getenv("OPENAI_API_KEY"))
 
-@app.route("/")
-def home():
+@app.route("/", methods=["GET"])
+def root():
     return jsonify({"status": "Gmail AI Stub is running"})
 
 @app.route("/generate", methods=["POST"])
-def generate_reply():
+def generate():
     try:
         data = request.get_json()
-        user_text = data.get("text", "").strip()
-        language = data.get("language", "auto")
+        text = data.get("text", "").strip()
+        lang = data.get("lang", "en")
 
-        if not user_text:
-            return jsonify({"error": "No text provided"}), 400
+        if not text:
+            return jsonify({"error": "Empty input"}), 400
 
-        system_prompt = "Ты — вежливый и лаконичный AI-помощник для Gmail. Отвечай профессионально и дружелюбно."
-        if language != "auto":
-            system_prompt += f" Пиши ответ на {language}."
+        system_prompt = f"You are a helpful email assistant. Respond in {lang} language, politely and briefly."
 
-        completion = client.chat.completions.create(
-            model="gpt-3.5-turbo",
+        response = client.chat.completions.create(
+            model="gpt-4o-mini",
             messages=[
                 {"role": "system", "content": system_prompt},
-                {"role": "user", "content": user_text}
+                {"role": "user", "content": text}
             ],
-            temperature=0.7,
-            max_tokens=300
+            max_tokens=180
         )
 
-        reply = completion.choices[0].message.content.strip()
+        reply = response.choices[0].message.content.strip()
         return jsonify({"reply": reply})
 
     except Exception as e:
-        print("Ошибка сервера:", e)
+        print("Error:", e)
         return jsonify({"error": str(e)}), 500
 
 
 if __name__ == "__main__":
-    app.run(host="0.0.0.0", port=10000)
+    port = int(os.environ.get("PORT", 5000))
+    app.run(host="0.0.0.0", port=port)
