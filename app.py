@@ -6,6 +6,7 @@ import os, threading, time, requests
 app = Flask(__name__)
 CORS(app)
 
+# Подключение клиента OpenAI с ключом из Render
 client = OpenAI(api_key=os.getenv("OPENAI_API_KEY"))
 
 @app.route("/")
@@ -20,20 +21,35 @@ def generate():
         if not user_text:
             return jsonify({"error": "No text provided"}), 400
 
-        prompt = f"Составь вежливый и осмысленный ответ на следующее письмо:\n\n{user_text}"
+        # Шаг 1. Определяем язык текста
+        detect_prompt = f"Определи язык этого текста: ```{user_text}```. Ответь только кодом языка, например: en, ru, es, fr, de, it."
+        detect_response = client.chat.completions.create(
+            model="gpt-4o-mini",
+            messages=[{"role": "user", "content": detect_prompt}],
+        )
+        lang = detect_response.choices[0].message.content.strip().lower()
+        if len(lang) > 3 or not lang.isalpha():
+            lang = "en"  # fallback
+
+        # Шаг 2. Генерация ответа на том же языке
+        generate_prompt = (
+            f"Ты — вежливый и краткий ассистент. Ответь на следующем письме "
+            f"на том же языке ({lang}), корректно и естественно:\n\n{user_text}"
+        )
         response = client.chat.completions.create(
             model="gpt-4o-mini",
-            messages=[{"role": "user", "content": prompt}],
+            messages=[{"role": "user", "content": generate_prompt}],
         )
 
         reply = response.choices[0].message.content.strip()
-        return jsonify({"reply": reply})
+        return jsonify({"reply": reply, "language": lang})
 
     except Exception as e:
+        print("[Server Error]", e)
         return jsonify({"error": str(e)}), 500
 
 
-# === KEEP-ALIVE ПИНГ ===
+# === KEEP-ALIVE, чтобы Render не засыпал ===
 def keep_alive():
     while True:
         try:
