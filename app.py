@@ -1,47 +1,65 @@
 from flask import Flask, request, jsonify
-from flask_cors import CORS
 import os
+import threading
+import time
+import requests
 from openai import OpenAI
 
 app = Flask(__name__)
-CORS(app)
-
-# 🔑 Ключ из переменных окружения Render
 client = OpenAI(api_key=os.getenv("OPENAI_API_KEY"))
 
-@app.route("/", methods=["GET"])
-def root():
+# 🩵 Keep-alive пинг (чтобы Render не засыпал)
+def keep_alive():
+    while True:
+        try:
+            url = "https://gmail-ai-stub.onrender.com/"
+            requests.get(url, timeout=5)
+            print("✅ Keep-alive ping sent")
+        except Exception as e:
+            print("⚠️ Keep-alive error:", e)
+        time.sleep(540)  # каждые 9 минут
+
+threading.Thread(target=keep_alive, daemon=True).start()
+
+@app.route("/")
+def home():
     return jsonify({"status": "Gmail AI Stub is running"})
 
 @app.route("/generate", methods=["POST"])
-def generate():
+def generate_reply():
     try:
         data = request.get_json()
-        text = data.get("text", "").strip()
-        lang = data.get("lang", "en")
+        email_text = data.get("text", "").strip()
 
-        if not text:
-            return jsonify({"error": "Empty input"}), 400
+        if not email_text:
+            return jsonify({"error": "No email text provided"}), 400
 
-        system_prompt = f"You are a helpful email assistant. Respond in {lang} politely and briefly."
+        # 🔍 AI анализирует текст письма, а не просто поле ввода
+        prompt = f"""
+        Ты — вежливый и лаконичный помощник для Gmail. 
+        На основе следующего письма создай короткий ответ от имени пользователя. 
+        Используй стиль делового общения. Вот текст письма:
+        ---
+        {email_text}
+        ---
+        """
 
-        response = client.chat.completions.create(
-            model="gpt-4o-mini",
+        completion = client.chat.completions.create(
+            model="gpt-3.5-turbo",
             messages=[
-                {"role": "system", "content": system_prompt},
-                {"role": "user", "content": text}
+                {"role": "system", "content": "Ты помощник по написанию писем Gmail."},
+                {"role": "user", "content": prompt}
             ],
-            max_tokens=180
+            temperature=0.7,
+            max_tokens=250
         )
 
-        reply = response.choices[0].message.content.strip()
+        reply = completion.choices[0].message.content.strip()
         return jsonify({"reply": reply})
 
     except Exception as e:
-        print("⚠️ Server error:", e)
+        print("Ошибка сервера:", e)
         return jsonify({"error": str(e)}), 500
 
-
 if __name__ == "__main__":
-    port = int(os.environ.get("PORT", 5000))
-    app.run(host="0.0.0.0", port=port)
+    app.run(host="0.0.0.0", port=10000)
